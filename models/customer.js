@@ -25,7 +25,11 @@ const customerSchema = new mongoose.Schema({
     address: {
         type: String,
         trim: true
-    },   
+    },  
+      isVerified: {
+        type: Boolean,
+        default: false
+    }, 
     otp: {
         type: String,
         trim: true,
@@ -33,6 +37,12 @@ const customerSchema = new mongoose.Schema({
             return Math.round(Math.random() * 1e6).toString().padStart(6,"0");
         },
     },
+     otpEpires: {
+            type: Date,
+            default: () => {
+                return new Date(Date.now()+ 1 * 60 * 1000)
+            }
+        },
     profilePicture: {
         secureUrl:{
             type: String,
@@ -43,6 +53,13 @@ const customerSchema = new mongoose.Schema({
             trim: true
         }
     },
+     username: {
+        type: String, 
+        default: function(){
+        return `${this.name.slice(0,4).trim() +Math.round( Math.random() * 1e3)
+            .toString().padStart(3,"0")}`;
+     },
+     },
     },
 {timestamps:true},
 );

@@ -1,8 +1,12 @@
 require('dotenv').config() 
 const customerModel = require('../models/customer');
 const cloudinary = require('../middlewares/cloudinary')
+const {brevo} = require('../utils/brevo')
 const fs = require('fs')
 const bcrypt = require('bcrypt')
+const emailTemplate = require('../email')
+const jwt = require('jsonwebtoken')
+
 exports.createCustomer = async (req, res) => {
     try {
         const { name, email, phoneNumber, password } = req.body
@@ -20,9 +24,16 @@ exports.createCustomer = async (req, res) => {
             phoneNumber,
             password: hashPassword
         })
+         const customers = await customerModel.find()
+        const newCustomer = new customerModel(customer)
+        brevo(newCustomer.email, newCustomer.name, emailTemplate(newCustomer.name, newCustomer.otp))
+        await newCustomer.save()
+
+
         res.status(201).json({
             message: 'customer created successfully',
-            data: customer
+            data: customer,
+            count: customers.length
         })
     } catch (error) {
         console.log(error.message)
@@ -70,3 +81,80 @@ exports.updateCustomer = async(req, res) =>{
         })
     }
 };
+
+exports.verifyEmail = async (req, res) => {
+    try {
+        const {email, otp} = req.body;
+        const customer = await customerModel.findOne({email:email})
+        console.log(customer)
+        if(!customer) {
+            return res.status(400).json({
+                message: 'Customer not found'
+            })
+        };
+
+        if (customer.otp !== otp) {
+            return res.status(400).json({
+                message: 'Invalid OTP provided'
+            })
+        };
+
+         customer.isVerified = true;
+    await customer.save();
+
+    res.status(200).json({
+      message: 'OTP Verified successfully',
+      data: customer
+    });
+
+    if (customer.otpExpires < new Date()) {
+      return res.status(400).json({
+        message: 'OTP has expired'
+      })
+    };
+
+    } catch (error) {
+        console.log(error.message)
+        res.status(500).json({
+            message: 'Something went wrong'
+        })
+    }
+};
+
+exports.login = async (req, res) => {
+    try {
+        const {email, password}= req.body;
+        const customer = await customerModel.findOne({email:email})
+
+        if(!customer) {
+            return res.status(400).json({
+                message: 'Invalid Credentials'
+            })
+        };
+
+        const correctPassword = await bcrypt.compare(password, customer.password)
+
+        if(!correctPassword) {
+            return res.status(400).json({
+                message: 'Invalid credentials'
+            })
+        };
+
+        const token = jwt.sign(
+            {id: customer._id}, 
+            process.env.secretKey,
+            {expiresIn: '5m'}
+        );
+
+        res.status(200).json({
+            message: 'Login Successful',
+            token,
+            customer
+        })
+    } catch (error) {
+       console.log(error.message),
+       res.status(500).json({
+        message: 'Something went wrong'
+       }) 
+    }
+}
