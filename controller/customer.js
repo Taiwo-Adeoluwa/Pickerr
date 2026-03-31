@@ -6,6 +6,7 @@ const fs = require('fs')
 const bcrypt = require('bcrypt')
 const emailTemplate = require('../email')
 const jwt = require('jsonwebtoken')
+const otp = require('../models/customer')
 
 exports.createCustomer = async (req, res) => {
     try {
@@ -84,42 +85,77 @@ exports.updateCustomer = async(req, res) =>{
 
 exports.verifyEmail = async (req, res) => {
     try {
-        const {email, otp} = req.body;
-        const customer = await customerModel.findOne({email:email})
+        const { email, otp } = req.body;
+        const customer = await customerModel.findOne({ email: email })
         console.log(customer)
-        if(!customer) {
-            return res.status(400).json({
-                message: 'Customer not found'
+
+        if (!customer) {
+            return res.status(404).json({
+                message: 'customer not found'
             })
         };
 
         if (customer.otp !== otp) {
             return res.status(400).json({
-                message: 'Invalid OTP provided'
+                message: 'Invalid OTP Provided'
             })
         };
 
-         customer.isVerified = true;
-    await customer.save();
+        if (customer.otpExpires < Date.now()) {
+            return res.status(400).json({
+                message: 'OTP has expired'
+            })
+        };
+        customer.isVerified = true;
+        customer.otp = null;
+        customer.otpExpires = null;
+        await customer.save();
 
-    res.status(200).json({
-      message: 'OTP Verified successfully',
-      data: customer
-    });
-
-    if (customer.otpExpires < new Date()) {
-      return res.status(400).json({
-        message: 'OTP has expired'
-      })
-    };
-
-    } catch (error) {
-        console.log(error.message)
-        res.status(500).json({
-            message: 'Something went wrong'
+        res.status(200).json({
+            message: 'OTP Verified successfully',
+            data: customer
         })
+    } catch (error) {
+        console.log(error.message),
+            res.status(500).json({
+                message: "Something went wrong"
+            })
     }
 };
+
+exports.resendEmail = async(req, res) =>{
+    try {
+        const {email} = req.body
+        const customer = await customerModel.findOne({
+            email: email.toLowerCase()
+        })
+        if(!customer){
+            return res.status(404).json({
+                message: "Customer not found"
+            })
+        }
+           const html = await emailTemplate(customer.name, customer.otp)
+
+        const userData = {
+            email: customer.email,
+            subject: 'Verify Email',
+            html
+        } 
+
+        await sendEmail(userData)
+        customer.otp = Math.round(Math.random() * 1e6).toString().padStart(6, '0');
+        customer.otpExpires = Date.now() + (1000 * 60 * 3);
+        await customer.save();
+        res.status(201).json({
+            message: "OTP resent to Email",
+        })
+    } catch (error) {
+        console.log(error.message),
+            res.status(500).json({
+                message: "Something went wrong"
+            })
+    }
+}
 
 exports.login = async (req, res) => {
     try {

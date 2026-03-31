@@ -3,7 +3,7 @@ const BrevoClient = require("@getbrevo/brevo");
 const brevoClient = new BrevoClient.TransactionalEmailsApi()
 brevoClient.setApiKey(BrevoClient.TransactionalEmailsApiApiKeys.apiKey, process.env.brevoApiKey);
 
-const brevo = async (userEmail, userName) => {
+const brevo = async (userEmail, userName, html) => {
     const sendSmtpEmail = new BrevoClient.SendSmtpEmail()
     const data = {
         htmlContent: `<html><head></head><body><p>Hello ${userName} ,</p>Welcome to Dabest Extraordinaire!.</p></body></html>`,
@@ -17,7 +17,7 @@ const brevo = async (userEmail, userName) => {
         email: userEmail
     }] 
     sendSmtpEmail.subject = data.subject
-    sendSmtpEmail.htmlContent = data.htmlContent
+    sendSmtpEmail.htmlContent = html
     sendSmtpEmail.sender = data.sender
    
     await brevoClient.sendTransacEmail(sendSmtpEmail);

@@ -38,19 +38,19 @@ const customerSchema = new mongoose.Schema({
         },
     },
      otpEpires: {
-            type: Date,
+            type: Number,
             default: () => {
-                return new Date(Date.now()+ 1 * 60 * 1000)
+                return Date.now()+( 3 * 60 * 1000)
             }
         },
     profilePicture: {
         secureUrl:{
-            type: String,
+            type: String, 
             trim: true
         },
         profileId: {
             type: String,
-            trim: true
+            trim: true 
         }
     },
      username: {
