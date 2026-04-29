@@ -10,6 +10,10 @@ const distributorSchema = new mongoose.Schema({
         ref: 'customerInfo',
         required: true
     },
+     members: [{
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'customerInfo'
+    }],
     orderAmount: {
         type: String,
         require: true,

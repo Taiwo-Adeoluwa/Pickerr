@@ -4,9 +4,8 @@ const cloudinary = require('../middlewares/cloudinary')
 const {brevo} = require('../utils/brevo')
 const fs = require('fs')
 const bcrypt = require('bcrypt')
-const emailTemplate = require('../email')
+const {emailTemplate, resetPasswordTemplate} = require('../email')
 const jwt = require('jsonwebtoken')
-const otp = require('../models/customer')
 
 exports.createCustomer = async (req, res) => {
     try {
@@ -21,7 +20,7 @@ exports.createCustomer = async (req, res) => {
         }
         const customer = await customerModel.create({
             name,
-            email, 
+            email: email.toLowerCase(), 
             phoneNumber,
             password: hashPassword
         })
@@ -86,7 +85,7 @@ exports.updateCustomer = async(req, res) =>{
 exports.verifyEmail = async (req, res) => {
     try {
         const { email, otp } = req.body;
-        const customer = await customerModel.findOne({ email: email })
+        const customer = await customerModel.findOne({ email: email.toLowerCase() })
         console.log(customer)
 
         if (!customer) {
@@ -160,7 +159,7 @@ exports.resendEmail = async(req, res) =>{
 exports.login = async (req, res) => {
     try {
         const {email, password}= req.body;
-        const customer = await customerModel.findOne({email:email})
+        const customer = await customerModel.findOne({email:email.toLowerCase()})
 
         if(!customer) {
             return res.status(400).json({
@@ -176,10 +175,16 @@ exports.login = async (req, res) => {
             })
         };
 
+        if(customer.isVerified ==false) {
+            return res.status(400).json({
+                message: 'Please verify your email'
+            })
+        };
+
         const token = jwt.sign(
             {id: customer._id}, 
             process.env.secretKey,
-            {expiresIn: '5m'}
+            {expiresIn: '40m'}
         );
 
         res.status(200).json({
@@ -193,4 +198,165 @@ exports.login = async (req, res) => {
         message: 'Something went wrong'
        }) 
     }
+}
+
+exports.forgotPassword = async(req, res) =>{
+    try {
+        const {email} = req.body;
+        const customer = await customerModel.findOne({email: email.toLowerCase()})
+
+        if (customer == null){
+            return res.status(400).json({
+                message: 'Invalid credentials'
+            })
+        }
+
+        const OTP = Math.round(Math.random() * 1e6).toString().padStart(6,"0");
+        customer.otp = OTP;
+
+        customer.otpEpires = Date.now() + ( 5 * 60 * 1000);
+        const data = {
+            name: customer.name,
+            otp: OTP
+        }
+
+        //Send the email to the Customer
+        brevo(email, customer.name, resetPasswordTemplate(data));
+        await customer.save()
+
+        res.status(200).json({
+            message: 'Forgot password successful'
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+}
+
+exports.resetPassword = async(req,res)=>{
+    try {
+        const {otp, password, email} = req.body;
+        const customer = await customerModel.findOne({email: email.toLowerCase()})
+        if(customer == null){
+            return res.status(404).json({
+                message: 'Invalid credentials'
+            })
+        }
+
+       if(Date.now() > customer.otpExpires || otp !== customer.otp) {
+      return res.status(400).json({
+        message: 'Invalid OTP'
+      })
+    } 
+
+    //Reset the customer's with the encrypted and updated password
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt)
+    customer.password = hashPassword
+    await customer.save();
+
+    res.status(200).json({
+        message: 'Password reset successfully'
+    })
+
+    } catch (error) {
+        res.status(400).json({
+            message: error.message
+        })
+    }
+}
+
+exports.changePassword = async(req,res)=>{
+    try {
+        const {id} = req.user;
+        const {oldPassword, newPassword} = req.body;
+        const customer = await customerModel.findById(id);
+
+        if(!customer){
+            return res.status(404).json({
+                message: 'Customer not found'
+            })
+        }
+
+        const checkPassword = await bcrypt.compare(oldPassword, customer.password);
+        if(!checkPassword){
+            return res.status(400).json({
+                message: 'Old password is invalid'
+            })
+        }
+
+        //Encrypt and change to the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashPassword = await bcrypt.hash(newPassword, salt)
+        customer.password = hashPassword;
+
+        await customer.save();
+
+        res.status(200).json({
+            message: ' Password changed successfully'
+        })
+
+    } catch (error) {
+       res.status(400).json({
+        message: error.message
+       }) 
+    }
+}
+
+exports.loginWithGoogle = async(req, res) =>{
+    try {
+        const token = await jwt.sign({
+            id:req.user._id
+        }, process.env.secretKey,
+            {expiresIn: '40m'})
+
+            res.status(200).json({
+                message: 'Login successful',
+                data: req.user.name,
+                token
+            })
+            
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+}
+
+exports.getAllCustomer = async(req, res) =>{
+  try {
+    const customers = await customerModel.find();
+    //Send a success response
+    res.status(200).json({
+      message: 'All customers',
+      data: customers
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    })
+  }
+}
+
+exports.deleteCustomer = async(req, res) =>{
+  try {
+      const { id } = req.params;
+      const customers = await customerModel.findByIdAndDelete(id);
+      if (!customers) {
+        return res.status(404).json({
+          message: 'Customer not found'
+        })
+      }
+      //Send a success response
+      res.status(200).json({
+        message: 'Customer deleted successfully',
+        data: customers
+      })
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    })
+  }
 }

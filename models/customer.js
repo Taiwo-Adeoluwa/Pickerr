@@ -14,13 +14,16 @@ const customerSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
         require: true,
-        unique: true,
-        trim: true
+        unique: true
     },
     password: {
         type: String,
-        unique: true,
-        trim: true
+        unique: true
+    },
+    role: {
+     type: String,
+        enum: ['customer', 'admin'],
+        default: "customer"
     },
     address: {
         type: String,
@@ -33,14 +36,14 @@ const customerSchema = new mongoose.Schema({
     otp: {
         type: String,
         trim: true,
-        default: ()=>{
-            return Math.round(Math.random() * 1e6).toString().padStart(6,"0");
-        },
+        // default: ()=>{
+        //     return Math.round(Math.random() * 1e6).toString().padStart(6,"0");
+        // },
     },
      otpEpires: {
             type: Number,
             default: () => {
-                return Date.now()+( 3 * 60 * 1000)
+                return Date.now()+( 5 * 60 * 1000)
             }
         },
     profilePicture: {
