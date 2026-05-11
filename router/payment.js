@@ -1,4 +1,4 @@
-const { initializePayment, verifyPayment, getAllPaymentByUser } = require('../controller/paymentController');
+const { initializePayment, verifyPayment, getAllPaymentByUser } = require('../controller/payment');
 const { initializePaystackPayment, verifyPaystackPayment, getAllPaystackPayments } = require('../controller/paystack');
 const { authentication } = require('../middlewares/auth');
 

@@ -4,6 +4,7 @@ require('./config/database')
 // require('./models/customer')
 require('./models/distributor')
 const express = require('express');
+const express_session = require('express-session')
 const paymentRouter = require('./router/payment');
 const distributorRouter = require('./router/distributor')
 const requestRouter = require('./router/request')
