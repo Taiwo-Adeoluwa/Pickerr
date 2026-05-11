@@ -6,18 +6,21 @@ const fs = require('fs')
 const bcrypt = require('bcrypt')
 const {emailTemplate, resetPasswordTemplate} = require('../email')
 const jwt = require('jsonwebtoken')
+const otpGenerator = require('otp-generator')
 
 exports.createCustomer = async (req, res) => {
     try {
         const { name, email, phoneNumber, password } = req.body
+
+        const otp = otpGenerator.generate(6, {upperCaseAlphabets: false, lowerCaseAlphabets: false, specialChars: false});
+        if(!password){
+          return res.status(400).json({
+            messasge: 'Please enter password'
+          })
+        }
+        console.log('OTP:', otp)
         const salt = await bcrypt.genSalt(8);
         const hashPassword = await bcrypt.hash(password, salt)
-
-        if (!email.includes('@') || !email.includes('.')) {
-            return res.status(400).json({
-                message: "Invalid email format"
-            });
-        }
         const customer = await customerModel.create({
             name,
             email: email.toLowerCase(), 
@@ -36,9 +39,8 @@ exports.createCustomer = async (req, res) => {
             count: customers.length
         })
     } catch (error) {
-        console.log(error.message)
-        res.status(400).json({
-            message: 'something went wrong'
+        res.status(500).json({
+            message: error.message
         });
     }
 };

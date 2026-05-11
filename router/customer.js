@@ -5,9 +5,9 @@ const { profile, loginProfile } = require('../middlewares/passport');
 const { signupValidator, resetPasswordValidator, changePasswordValidator } = require('../middlewares/validator');
 const router = require('express').Router();
 
-router.post('/customer', signupValidator ,createCustomer)
-router.put('/customers/:id', upload.single('profilePicture'), updateCustomer)
-router.post('/customer/check', verifyEmail);
+router.post('/', signupValidator ,createCustomer)
+router.put('/:id', upload.single('profilePicture'), updateCustomer)
+router.post('/check', verifyEmail);
 router.post('/login', login)
 router.post('/check', resendEmail)
 
